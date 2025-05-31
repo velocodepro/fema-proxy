@@ -5,8 +5,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing lat or lng" });
   }
 
+  const baseUrl = "https://services.arcgis.com/hILyB2v3YVYcU7cg/arcgis/rest/services/NFHL/FeatureServer/28/query";
+
   const query = new URLSearchParams({
-    geometry: `${lng},${lat}`,
+    geometry: `${lng},${lat}`, // Must be in this order: X (lng), Y (lat)
     geometryType: 'esriGeometryPoint',
     inSR: '4326',
     spatialRel: 'esriSpatialRelIntersects',
@@ -15,20 +17,28 @@ export default async function handler(req, res) {
     f: 'json'
   });
 
-  const url = `https://services.arcgis.com/hILyB2v3YVYcU7cg/arcgis/rest/services/NFHL/FeatureServer/28/query?${query.toString()}`;
+  const fullUrl = `${baseUrl}?${query.toString()}`;
 
   try {
-    const response = await fetch(url);
-    const contentType = response.headers.get("content-type");
+    const response = await fetch(fullUrl);
 
-    if (!contentType.includes("application/json")) {
-      const text = await response.text();
-      return res.status(502).json({ error: "Blocked or returned HTML", htmlPreview: text.slice(0, 200) });
+    // Handle HTML returned instead of JSON
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const html = await response.text();
+      return res.status(502).json({
+        error: "Expected JSON but received HTML",
+        preview: html.slice(0, 200)
+      });
     }
 
     const data = await response.json();
     return res.status(200).json(data);
+
   } catch (err) {
-    return res.status(500).json({ error: "FEMA data fetch failed", detail: err.message });
+    return res.status(500).json({
+      error: "Error fetching FEMA data",
+      detail: err.message
+    });
   }
 }
