@@ -18,22 +18,21 @@ export default async function handler(req, res) {
   const url = `https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28/query?${query.toString()}`;
 
   try {
-    const femaRes = await fetch(url, {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0'
       }
     });
 
-    const text = await femaRes.text();
+    const text = await response.text();
 
-    // If HTML is returned instead of JSON
     if (text.startsWith('<')) {
-      return res.status(502).json({ error: 'Blocked by FEMA or returned HTML' });
+      return res.status(502).json({ error: 'FEMA returned HTML instead of JSON' });
     }
 
     const data = JSON.parse(text);
-    res.status(200).json(data);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch FEMA data', details: err.message });
+    return res.status(500).json({ error: 'Fetch failed', detail: err.message });
   }
 }
