@@ -15,25 +15,20 @@ export default async function handler(req, res) {
     f: 'json'
   });
 
-  const url = `https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28/query?${query.toString()}`;
+  const url = `https://services.arcgis.com/hILyB2v3YVYcU7cg/arcgis/rest/services/NFHL/FeatureServer/28/query?${query.toString()}`;
 
   try {
-    const femaRes = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
+    const response = await fetch(url);
+    const contentType = response.headers.get("content-type");
 
-    const text = await femaRes.text();
-
-    // If HTML is returned instead of JSON
-    if (text.startsWith('<')) {
-      return res.status(502).json({ error: 'Blocked by FEMA or returned HTML' });
+    if (!contentType.includes("application/json")) {
+      const text = await response.text();
+      return res.status(502).json({ error: "Blocked or returned HTML", htmlPreview: text.slice(0, 200) });
     }
 
-    const data = JSON.parse(text);
-    res.status(200).json(data);
+    const data = await response.json();
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch FEMA data', details: err.message });
+    return res.status(500).json({ error: "FEMA data fetch failed", detail: err.message });
   }
 }
